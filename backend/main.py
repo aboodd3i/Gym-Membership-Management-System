@@ -44,7 +44,10 @@ def login_user(login_data: UserLogin):
     # Basic validation (in production, use bcrypt to hash passwords!)
     if not user or user['password_hash'] != login_data.password:
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    
+    # 2. NEW: CHECK IF USER IS AN ADMIN! If not, block them.
+    if user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Access Denied. Admin portal only.")
+        
     # Remove password hash before sending data to the frontend
     del user['password_hash']
     return user
@@ -787,16 +790,16 @@ def get_all_equipment():
 
 @app.get("/api/equipment/maintenance-alerts", response_model=List[MaintenanceAlert], tags=["Equipment"])
 def get_maintenance_alerts():
-    """Finds broken equipment or items needing maintenance within 30 days."""
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
-        SELECT name, category, condition_status,
+        SELECT e.equipment_id, name, category, condition_status,
                next_maintenance_date,
                next_maintenance_date - CURRENT_DATE AS days_until_maintenance
-        FROM equipment
+        FROM equipment e
         WHERE next_maintenance_date <= CURRENT_DATE + 30
-           OR condition_status = 'broken'
+           OR condition_status ILIKE 'broken'      /* <-- Changed to ILIKE */
+           OR condition_status ILIKE 'needs repair' /* <-- Changed to ILIKE */
         ORDER BY next_maintenance_date;
     """
     cursor.execute(query)
@@ -821,11 +824,10 @@ def update_equipment_condition(equipment_id: int, cond_data: UpdateEquipmentStat
 
 @app.patch("/api/equipment/{equipment_id}/repair-complete", tags=["Equipment"])
 def complete_equipment_repair(equipment_id: int):
-    """Marks equipment as Good and schedules next maintenance 6 months out."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        UPDATE equipment SET condition_status = 'Good', next_maintenance_date = CURRENT_DATE + INTERVAL '6 months' 
+        UPDATE equipment SET condition_status = 'good', next_maintenance_date = CURRENT_DATE + INTERVAL '6 months' 
         WHERE equipment_id = %s;
     """, (equipment_id,))
     conn.commit()
@@ -1165,6 +1167,29 @@ def get_revenue_running_total():
         ORDER BY payment_date;
     """
     cursor.execute(query)
+    data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return data
+
+@app.get("/api/analytics/member-dashboard-view", response_model=List[MemberDashboardView], tags=["Advanced Analytics"])
+def get_member_dashboard_view():
+    """Fetches data directly from the pre-built vw_member_dashboard View."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    # Notice how simple the query is now! The database does the heavy lifting.
+    cursor.execute("SELECT * FROM vw_member_dashboard ORDER BY total_paid DESC;")
+    data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return data
+
+@app.get("/api/analytics/session-capacity-view", response_model=List[SessionCapacityView], tags=["Advanced Analytics"])
+def get_session_capacity_view():
+    """Fetches data directly from the pre-built vw_session_capacity View."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM vw_session_capacity ORDER BY schedule_date ASC;")
     data = cursor.fetchall()
     cursor.close()
     conn.close()
