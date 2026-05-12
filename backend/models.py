@@ -1,7 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import date, datetime
-
+from datetime import date, datetime, time
 # ==========================================================
 # PYDANTIC MODELS (Data Validation & Serialization)
 # These classes ensure the API receives and sends the exact 
@@ -126,27 +125,25 @@ class BookingRequest(BaseModel):
     member_id: int
 
 class SessionResponse(BaseModel):
-    """Session details including current booking count"""
     session_id: int
     session_name: str
     schedule_date: date
-    start_time: str
-    end_time: str
+    start_time: time          
+    end_time: time            
     max_capacity: int
     trainer_first_name: Optional[str] = None
     trainer_last_name: Optional[str] = None
     current_bookings: int
 
 class SessionWithSpots(BaseModel):
-    """Session details showing remaining capacity"""
     session_id: int
     session_name: str
-    trainer: str
+    trainer: Optional[str] = None
     schedule_date: date
-    start_time: str
-    end_time: str
-    max_capacity: int
-    spots_remaining: int
+    start_time: time         
+    end_time: time           
+    max_capacity: Optional[int] = 0
+    spots_remaining: Optional[int] = 0
 
 class MemberBookingHistory(BaseModel):
     """Member's view of their past or upcoming sessions"""
@@ -303,6 +300,7 @@ class UpdateEquipmentStatus(BaseModel):
 
 class MaintenanceAlert(BaseModel):
     """Equipment needing repair or maintenance soon"""
+    equipment_id: int
     name: str
     category: Optional[str] = None
     condition_status: str
@@ -343,3 +341,23 @@ class TransferSessionRequest(BaseModel):
     """Transaction: Move a session from one trainer to another"""
     session_id: int
     new_trainer_id: int
+    
+# --- VIEWS ---
+class MemberDashboardView(BaseModel):
+    """Data returned from the vw_member_dashboard view"""
+    member_id: int
+    full_name: str
+    plan_name: Optional[str] = None
+    status: str
+    total_paid: float
+    total_visits: int
+
+class SessionCapacityView(BaseModel):
+    """Data returned from the vw_session_capacity view"""
+    session_id: int
+    session_name: str
+    trainer: Optional[str] = None
+    schedule_date: date
+    max_capacity: int
+    current_bookings: int
+    spots_remaining: int
