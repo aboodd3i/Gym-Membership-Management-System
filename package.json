@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "@fontsource/exo-2": "^5.2.8",
+    "@fontsource/orbitron": "^5.2.8",
+    "@fortawesome/fontawesome-free": "^7.2.0"
+  }
+}
