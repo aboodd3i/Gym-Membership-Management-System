@@ -1,6 +1,9 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from database import init_db
 from apis.authentication.router import router as authentication_router
 from apis.members.router import router as members_router
 from apis.trainers.router import router as trainers_router
@@ -14,6 +17,12 @@ from apis.etc.router import router as etc_router
 
 # Initialize the FastAPI app with a title and version shown in Swagger docs
 app = FastAPI(title="Gym Management System API", version="2.0")
+
+
+@app.on_event("startup")
+def startup():
+    if os.getenv("DB_INIT_ON_STARTUP", "false").lower() == "true":
+        init_db()
 
 app.add_middleware(
     CORSMiddleware,
