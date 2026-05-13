@@ -86,9 +86,10 @@ CREATE TABLE EQUIPMENT(
 	next_maintenance_date DATE
 );
 
+
 -- filling seed data to plot tables with dummmy values. 1 admin, 3 trainers, 5 members
 INSERT INTO USERS (email, password_hash, role) VALUES
-('saad.admin@gym.com', 'saad.admin123', 'admin'), -- basic format for username
+	('saad.admin@gym.com', 'saad.admin123', 'admin'), -- basic format for username
 ('ali.trainer@gym.com', 'ali.trainer123', 'trainer'),
 ('zaid.trainer@gym.com', 'zaid.trainer123', 'trainer'),
 ('sara.trainer@gym.com', 'sara.trainer123', 'trainer'),
@@ -441,7 +442,7 @@ WHERE equipment_id = 1;
 
 -- update maintenance date after repair done
 UPDATE equipment 
-SET condition_status = 'Good', next_maintenance_date = CURRENT_DATE + INTERVAL '6 months' 
+SET condition_status = 'good', next_maintenance_date = CURRENT_DATE + INTERVAL '6 months' 
 WHERE equipment_id = 1;
 
 
@@ -687,5 +688,66 @@ WHERE status = 'paid'
 ORDER BY payment_date;
 
 
+-- VIEWS
+-- Combines members, plans, payments, and attendance into one easy-to-read table
+CREATE OR REPLACE VIEW vw_member_dashboard AS
+SELECT 
+    m.member_id,
+    m.first_name || ' ' || m.last_name AS full_name,
+    mp.plan_name,
+    m.status,
+    COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.member_id = m.member_id AND p.status = 'paid'), 0) AS total_paid,
+    (SELECT COUNT(a.attendance_id) FROM attendance a WHERE a.member_id = m.member_id) AS total_visits
+FROM members m
+LEFT JOIN membership_plans mp ON m.plan_id = mp.plan_id;
+
+-- Calculates spots remaining dynamically
+CREATE OR REPLACE VIEW vw_session_capacity AS
+SELECT 
+    s.session_id,
+    s.session_name,
+    t.first_name || ' ' || t.last_name AS trainer,
+    s.schedule_date,
+    s.max_capacity,
+    COUNT(sb.booking_id) AS current_bookings,
+    s.max_capacity - COUNT(sb.booking_id) AS spots_remaining
+FROM sessions s
+JOIN trainers t ON s.trainer_id = t.trainer_id
+LEFT JOIN session_bookings sb ON s.session_id = sb.session_id AND sb.status = 'booked'
+GROUP BY s.session_id, t.first_name, t.last_name;
 
 
+-- TRIGGERS
+-- If a member is frozen/inactive and a 'paid' payment is recorded, they automatically become 'active'
+CREATE OR REPLACE FUNCTION fn_auto_activate_member()
+RETURNS TRIGGER AS $$ BEGIN
+    IF NEW.status = 'paid' THEN
+        UPDATE members SET status = 'active' WHERE member_id = NEW.member_id AND status != 'active';
+    END IF;
+    RETURN NEW;
+END;
+ $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_auto_activate_member ON payments;
+CREATE TRIGGER trg_auto_activate_member
+AFTER INSERT ON payments
+FOR EACH ROW
+EXECUTE FUNCTION fn_auto_activate_member();
+
+
+-- When a booking status changes to 'completed', automatically log a check-in
+CREATE OR REPLACE FUNCTION fn_auto_attendance()
+RETURNS TRIGGER AS $$ BEGIN
+    IF NEW.status = 'completed' AND (OLD.status IS NULL OR OLD.status != 'completed') THEN
+        INSERT INTO attendance (member_id, check_in)
+        VALUES (NEW.member_id, CURRENT_TIMESTAMP);
+    END IF;
+    RETURN NEW;
+END;
+ $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_auto_attendance ON session_bookings;
+CREATE TRIGGER trg_auto_attendance
+AFTER UPDATE ON session_bookings
+FOR EACH ROW
+EXECUTE FUNCTION fn_auto_attendance();
