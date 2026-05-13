@@ -1,11 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime, time
-# ==========================================================
-# PYDANTIC MODELS (Data Validation & Serialization)
-# These classes ensure the API receives and sends the exact 
-# data structure expected. "Request" = Input, "Response" = Output
-# ==========================================================
 
 # --- AUTHENTICATION ---
 class UserLogin(BaseModel):
@@ -84,6 +79,15 @@ class TrainerWorkload(BaseModel):
     specialization: Optional[str] = None
     total_sessions: int
     total_bookings: int
+    
+class TrainerScheduleResponse(BaseModel):
+    """Simpler model matching the exact SQL query for a trainer's schedule"""
+    session_id: int
+    session_name: str
+    schedule_date: date
+    start_time: time
+    end_time: time
+    max_capacity: int
 
 # --- PLANS ---
 class PlanResponse(BaseModel):
