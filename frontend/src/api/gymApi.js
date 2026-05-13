@@ -9,9 +9,6 @@ export const getDashboardStats = () => axios.get(`${API_BASE_URL}/dashboard/stat
 // Fetch all members
 export const getMembers = () => axios.get(`${API_BASE_URL}/members`);
 
-// Login user
-export const loginUser = (credentials) => axios.post(`${API_BASE_URL}/auth/login`, credentials);
-
 // Fetch all membership plans (for the dropdown)
 export const getPlans = () => axios.get(`${API_BASE_URL}/plans`);
 
@@ -76,3 +73,15 @@ export const getMemberDashboardView = () => axios.get(`${API_BASE_URL}/analytics
 
 // Fetch Session Capacity View
 export const getSessionCapacityView = () => axios.get(`${API_BASE_URL}/analytics/session-capacity-view`);
+
+// Login user
+export const loginUser = (credentials) => axios.post(`${API_BASE_URL}/auth/login`, credentials);
+
+// Fetch member dashboard stats
+export const getMemberDashboard = (memberId) => axios.get(`${API_BASE_URL}/members/${memberId}/dashboard`);
+
+// Fetch a trainer's upcoming schedule
+export const getTrainerSchedule = (trainerId) => axios.get(`${API_BASE_URL}/trainers/${trainerId}/schedule`);
+
+// Fetch workouts assigned by a specific trainer
+export const getTrainerAssignedWorkouts = (trainerId) => axios.get(`${API_BASE_URL}/trainers/${trainerId}/workouts`);
